@@ -17,7 +17,10 @@
 ├── backend/                  FastAPI（Python） 后端
 │   ├── app/routers/          每个业务模块一组接口
 │   ├── app/services/         业务规则与状态流转
-│   └── app/store.py          内存数据仓库与示例数据
+│   ├── app/store.py          内存数据仓库
+│   ├── app/seed.py           16 个业务模块的示例数据
+│   ├── app/seed_migration.py 存储格式迁移窗口与回填记录的示例数据
+│   └── tests/                迁移窗口回归测试
 ├── .gitignore
 └── docker-compose.yml
 ```
@@ -65,6 +68,33 @@ npm run dev
 | 采集结果校验 | `verify` | 校验规则 | 规则编号、采集计划、校验类型 |
 | 采集操作审计 | `audit` | 审计记录 | 记录编号、操作类型、操作对象 |
 | 采集存储分层 | `storage` | 存储策略 | 策略编号、存储层级、文件格式 |
+| 存储格式迁移窗口 | `storage-migration` | 迁移批次 | 批次编号、旧格式窗口、新层级文件 |
+
+## 存储格式迁移窗口
+
+`storage-migration` 是采集存储分层和结果聚合归并之间的迁移台账，示例数据在
+`backend/app/seed_migration.py`，业务规则在 `backend/app/services/storage_migration.py`。
+
+- 每个采集批次同一时刻只发布一个可读层级：`GET /api/storage-migration/read-manifest`
+  里要么是旧格式窗口，要么是新层级文件，不会同时出现。
+- 新层级已完成但恢复链仍引用旧格式时，用 `保留旧格式窗口` 或 `立即切换新层级` 二选一：
+  保留时清理清单出现「新层级文件 / 延后切换」，立即切换时清理清单出现「旧格式窗口 / 待确认」。
+- 回填失败从已迁移文件继续；同一批次并发回填只生成一份迁移结果，重复的历史结果用
+  `合并重复结果` 收敛。
+- 回填未完成的批次（`STOR-0001`）不会出现在 `GET /api/storage-migration/cleanup-manifest` 里。
+- 聚合侧通过 `GET /api/merge/read-layer` 和 `GET /api/merge/{id}/windows` 读取迁移兼容结果。
+- 数据库索引、部署环境和本地示例共用 `settings.storage_migration_version`
+  （默认 `2026.11.1`，可用 `STORAGE_MIGRATION_VERSION` 覆盖）；回滚时改回
+  `2026.10.3` 即可，存量回填记录不删除。
+- 存储策略的文件格式、存储层级、保留天数与迁移规则通过
+  `GET /api/storage/review` 继续参与迁移结果复核。
+
+回归测试：
+
+```bash
+cd backend
+python3 -m unittest discover -s tests -v
+```
 
 ## 约定
 

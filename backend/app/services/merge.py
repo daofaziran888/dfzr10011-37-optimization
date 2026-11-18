@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.storage_migration import service as migration_service
 from app.store import store
 
 MODULE = "merge"
@@ -45,6 +46,26 @@ class MergeService:
         entry["abnormal"] = False
         rows.append(entry)
         return entry, []
+
+    def read_layer_overview(self) -> dict[str, Any]:
+        """聚合侧读取口径：按迁移窗口复核清单，每个批次只读单一已提交层级文件。"""
+        return migration_service.compat_results()
+
+    def windows_for(self, entry_id: int) -> dict[str, Any] | None:
+        """聚合任务对应的存储格式迁移窗口待办与迁移兼容结果。"""
+        entry = store.find(MODULE, entry_id)
+        if entry is None:
+            return None
+        plan = str(entry.get("采集计划") or "")
+        windows = migration_service.aggregation_windows()["items"]
+        matched = [item for item in windows if plan and plan == str(item.get("采集计划") or "")]
+        return {
+            "任务编号": entry.get("任务编号"),
+            "采集计划": plan,
+            "migration_version": migration_service.compat_results()["migration_version"],
+            "items": matched,
+            "total": len(matched),
+        }
 
     def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(MODULE, entry_id)

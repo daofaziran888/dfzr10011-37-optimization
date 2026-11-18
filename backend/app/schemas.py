@@ -22,10 +22,21 @@ class ActionResult(BaseModel):
 
 
 class EntryPayload(BaseModel):
-    """登记或修改一条业务记录时提交的字段集合。"""
+    """登记或修改一条业务记录时提交的字段集合。
+
+    动作接口两种写法都接受：`{"values": {"action": "..."}}` 或 `{"action": "..."}`，
+    前端页面统一用后一种，脚本调用用前一种也不会被拦。
+    """
 
     values: dict[str, Any] = Field(default_factory=dict)
     remark: str | None = None
+    action: str | None = None
+
+
+def payload_action(payload: EntryPayload) -> str:
+    """从动作请求体里取出动作名，values 优先，其次顶层字段。"""
+    value = payload.values.get("action") or payload.action or ""
+    return str(value).strip()
 
 
 

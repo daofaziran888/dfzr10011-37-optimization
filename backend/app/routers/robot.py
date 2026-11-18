@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import ActionResult, EntryPayload, PageResult
+from app.schemas import ActionResult, EntryPayload, PageResult, payload_action
 from app.services.robot import RobotService
 
 router = APIRouter(prefix="/api/robot", tags=["RPA执行记录"])
@@ -30,7 +30,7 @@ def list_entries(
     return PageResult(items=items, total=total, page=page, size=size)
 
 
-@router.get("/{entry_id}", response_model=dict)
+@router.get("/{entry_id:int}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条执行记录明细；不存在时给出可读的错误说明。"""
     entry = service.get_entry(entry_id)
@@ -48,10 +48,10 @@ def create_entry(payload: EntryPayload) -> ActionResult:
     return ActionResult(ok=True, message="执行记录已登记", entry=entry)
 
 
-@router.post("/{entry_id}/actions", response_model=ActionResult)
+@router.post("/{entry_id:int}/actions", response_model=ActionResult)
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     """对单条执行记录执行启动执行、重试执行、归档记录；不允许的动作会被拦下并说明原因。"""
-    action = str(payload.values.get("action") or "").strip()
+    action = payload_action(payload)
     entry, message = service.run_action(entry_id, action)
     if entry is None:
         return ActionResult(ok=False, message=message)

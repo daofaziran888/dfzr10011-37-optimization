@@ -8,6 +8,7 @@
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记存储策略</button>
         <button class="btn" type="button" @click="exportRows">导出采集存储分层清单</button>
+        <RouterLink class="btn" to="/storage-migration">存储格式迁移窗口</RouterLink>
       </div>
     </header>
 
@@ -59,15 +60,53 @@
       <span>共 {{ total }} 条采集存储分层记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <h3 class="panel-title">存储迁移结果复核</h3>
+    <p class="panel-hint">
+      文件格式、存储层级、保留天数与迁移规则继续参与复核；回填未完成的策略不会进入清理清单。
+    </p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>策略编号</th>
+          <th>存储层级</th>
+          <th>文件格式</th>
+          <th>保留天数</th>
+          <th>迁移规则</th>
+          <th>迁移窗口数</th>
+          <th>清理待办数</th>
+          <th>复核结论</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in reviewRows" :key="String(item['策略编号'])">
+          <td>{{ item['策略编号'] }}</td>
+          <td>{{ item['存储层级'] }}</td>
+          <td>{{ item['文件格式'] }}</td>
+          <td>{{ item['保留天数'] }}</td>
+          <td>{{ item['迁移规则'] }}</td>
+          <td>{{ item['迁移窗口数'] }}</td>
+          <td>{{ item['清理待办数'] }}</td>
+          <td>{{ item['复核结论'] }}</td>
+        </tr>
+        <tr v-if="!reviewRows.length">
+          <td :colspan="8" class="empty-state">暂无存储迁移结果复核数据</td>
+        </tr>
+      </tbody>
+    </table>
+    <footer class="page-foot">
+      <span>迁移版本 {{ reviewVersion || '—' }}</span>
+      <RouterLink class="link" to="/storage-migration">查看存储格式迁移窗口</RouterLink>
+    </footer>
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { request } from '@/api/client'
+import { fetchJson, request } from '@/api/client'
 
-type Row = Record<string, string | number | null>
+type Row = Record<string, any>
 
 const ENDPOINT = '/api/storage'
 const columns = ["策略编号", "存储层级", "文件格式", "压缩算法", "保留天数", "迁移规则", "清理方式", "策略状态"]
@@ -80,6 +119,8 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const reviewRows = ref<Row[]>([])
+const reviewVersion = ref('')
 
 function resetFilters() {
   filters.value = {}
@@ -121,8 +162,19 @@ async function reload() {
     const payload = await response.json()
     rows.value = payload.items ?? []
     total.value = payload.total ?? rows.value.length
+    await reloadReview()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '采集存储分层列表读取失败'
+  }
+}
+
+async function reloadReview() {
+  try {
+    const payload = await fetchJson<Row>(`${ENDPOINT}/review`)
+    reviewRows.value = payload.items ?? []
+    reviewVersion.value = payload.migration_version ?? ''
+  } catch {
+    reviewRows.value = []
   }
 }
 

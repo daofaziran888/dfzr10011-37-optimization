@@ -17,6 +17,7 @@ const Robot = () => import('@/views/robot/index.vue')
 const Verify = () => import('@/views/verify/index.vue')
 const Audit = () => import('@/views/audit/index.vue')
 const Storage = () => import('@/views/storage/index.vue')
+const StorageMigration = () => import('@/views/storage-migration/index.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -38,6 +39,7 @@ const router = createRouter({
     { path: '/verify', name: 'verify', component: Verify },
     { path: '/audit', name: 'audit', component: Audit },
     { path: '/storage', name: 'storage', component: Storage },
+    { path: '/storage-migration', name: 'storage-migration', component: StorageMigration },
   ],
 })
 

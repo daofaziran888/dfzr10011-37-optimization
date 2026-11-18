@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import ActionResult, EntryPayload, PageResult
+from app.schemas import ActionResult, EntryPayload, PageResult, payload_action
 from app.services.ratelimit import RatelimitService
 
 router = APIRouter(prefix="/api/ratelimit", tags=["采集频率控制"])
@@ -30,7 +30,7 @@ def list_entries(
     return PageResult(items=items, total=total, page=page, size=size)
 
 
-@router.get("/{entry_id}", response_model=dict)
+@router.get("/{entry_id:int}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条频率规则明细；不存在时给出可读的错误说明。"""
     entry = service.get_entry(entry_id)
@@ -48,10 +48,10 @@ def create_entry(payload: EntryPayload) -> ActionResult:
     return ActionResult(ok=True, message="频率规则已登记", entry=entry)
 
 
-@router.post("/{entry_id}/actions", response_model=ActionResult)
+@router.post("/{entry_id:int}/actions", response_model=ActionResult)
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     """对单条频率规则执行启用规则、暂停规则、关闭规则；不允许的动作会被拦下并说明原因。"""
-    action = str(payload.values.get("action") or "").strip()
+    action = payload_action(payload)
     entry, message = service.run_action(entry_id, action)
     if entry is None:
         return ActionResult(ok=False, message=message)

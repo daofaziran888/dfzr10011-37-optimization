@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import ActionResult, EntryPayload, PageResult
+from app.schemas import ActionResult, EntryPayload, PageResult, payload_action
 from app.services.merge import MergeService
 
 router = APIRouter(prefix="/api/merge", tags=["结果聚合归并"])
@@ -30,7 +30,7 @@ def list_entries(
     return PageResult(items=items, total=total, page=page, size=size)
 
 
-@router.get("/{entry_id}", response_model=dict)
+@router.get("/{entry_id:int}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条聚合任务明细；不存在时给出可读的错误说明。"""
     entry = service.get_entry(entry_id)
@@ -48,10 +48,10 @@ def create_entry(payload: EntryPayload) -> ActionResult:
     return ActionResult(ok=True, message="聚合任务已登记", entry=entry)
 
 
-@router.post("/{entry_id}/actions", response_model=ActionResult)
+@router.post("/{entry_id:int}/actions", response_model=ActionResult)
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     """对单条聚合任务执行启动归并、重试归并、归档任务；不允许的动作会被拦下并说明原因。"""
-    action = str(payload.values.get("action") or "").strip()
+    action = payload_action(payload)
     entry, message = service.run_action(entry_id, action)
     if entry is None:
         return ActionResult(ok=False, message=message)
@@ -63,3 +63,18 @@ def export_entries() -> dict[str, Any]:
     """导出结果聚合归并清单：返回当前过滤条件下的全量数据。"""
     items, total = service.list_entries(page=1, size=10000)
     return {"module": "merge", "total": total, "items": items}
+
+
+@router.get("/read-layer", response_model=dict)
+def read_layer_overview() -> dict[str, Any]:
+    """聚合读取口径：按存储格式迁移窗口复核清单，只读单一已提交层级文件。"""
+    return service.read_layer_overview()
+
+
+@router.get("/{entry_id:int}/windows", response_model=dict)
+def windows_for(entry_id: int) -> dict[str, Any]:
+    """聚合任务对应的迁移窗口待办与迁移兼容结果；未匹配到窗口时返回空列表。"""
+    payload = service.windows_for(entry_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"聚合任务 {entry_id} 不存在或已归档")
+    return payload

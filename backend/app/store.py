@@ -7,16 +7,22 @@ from __future__ import annotations
 from typing import Any
 
 from app.seed import SEED_ROWS
+from app.seed_migration import STORAGE_MIGRATION_SEED
+
+# 迁移窗口与回填记录是采集存储分层的内部台账，不单独算业务模块，
+# 概览和健康检查仍然只统计 16 个业务模块。
+INTERNAL_MODULES = {"storage_migration", "migration_backfill"}
 
 
 class Store:
     def __init__(self) -> None:
+        seed = {**SEED_ROWS, **STORAGE_MIGRATION_SEED}
         self._tables: dict[str, list[dict[str, Any]]] = {
-            name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
+            name: [dict(row) for row in rows] for name, rows in seed.items()
         }
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if name not in INTERNAL_MODULES)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

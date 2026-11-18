@@ -22,5 +22,6 @@ from app.routers import robot as router_robot
 from app.routers import verify as router_verify
 from app.routers import audit as router_audit
 from app.routers import storage as router_storage
+from app.routers import storage_migration as router_storage_migration
 
-ROUTERS = [router_cluster, router_shard, router_merge, router_nodecheck, router_balance, router_resume, router_dashboard, router_crawlconf, router_datasource, router_logparse, router_ratelimit, router_proxy, router_robot, router_verify, router_audit, router_storage]
+ROUTERS = [router_cluster, router_shard, router_merge, router_nodecheck, router_balance, router_resume, router_dashboard, router_crawlconf, router_datasource, router_logparse, router_ratelimit, router_proxy, router_robot, router_verify, router_audit, router_storage, router_storage_migration]

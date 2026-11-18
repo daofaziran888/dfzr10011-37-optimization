@@ -59,15 +59,55 @@
       <span>共 {{ total }} 条结果聚合归并记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <h3 class="panel-title">聚合读取层级（迁移兼容结果）</h3>
+    <p class="panel-hint">
+      按存储格式迁移窗口复核清单读取：每个采集批次只显示一个已提交层级文件，
+      旧格式窗口与新层级不会同时作为有效输出。
+    </p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>批次编号</th>
+          <th>采集计划</th>
+          <th>存储层级 / 格式</th>
+          <th>读取层级</th>
+          <th>结果文件</th>
+          <th>迁移版本</th>
+          <th>复核状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in readLayers" :key="String(item['批次编号'])">
+          <td>{{ item['批次编号'] }}</td>
+          <td>{{ item['采集计划'] }}</td>
+          <td>{{ item['存储层级'] }} / {{ item['文件格式'] }}</td>
+          <td>{{ item['读取层级'] }}</td>
+          <td>{{ item['结果文件'] }}</td>
+          <td>{{ item['迁移版本'] }}</td>
+          <td>{{ item['复核状态'] }}</td>
+        </tr>
+        <tr v-if="!readLayers.length">
+          <td :colspan="7" class="empty-state">暂无已提交的聚合读取层级</td>
+        </tr>
+      </tbody>
+    </table>
+    <footer class="page-foot">
+      <span>
+        迁移版本 {{ readLayerVersion || '—' }} ·
+        未就绪批次 {{ readLayerBlocked.length }} 个
+      </span>
+      <RouterLink class="link" to="/storage-migration">查看存储格式迁移窗口</RouterLink>
+    </footer>
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { request } from '@/api/client'
+import { fetchJson, request } from '@/api/client'
 
-type Row = Record<string, string | number | null>
+type Row = Record<string, any>
 
 const ENDPOINT = '/api/merge'
 const columns = ["任务编号", "采集计划", "分片总数", "已归并数", "归并策略", "输出路径", "数据总量", "任务状态"]
@@ -80,6 +120,9 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const readLayers = ref<Row[]>([])
+const readLayerBlocked = ref<Row[]>([])
+const readLayerVersion = ref('')
 
 function resetFilters() {
   filters.value = {}
@@ -121,8 +164,21 @@ async function reload() {
     const payload = await response.json()
     rows.value = payload.items ?? []
     total.value = payload.total ?? rows.value.length
+    await reloadReadLayers()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '结果聚合归并列表读取失败'
+  }
+}
+
+async function reloadReadLayers() {
+  try {
+    const payload = await fetchJson<Row>(`${ENDPOINT}/read-layer`)
+    readLayers.value = payload.items ?? []
+    readLayerBlocked.value = payload.blocked ?? []
+    readLayerVersion.value = payload.migration_version ?? ''
+  } catch {
+    readLayers.value = []
+    readLayerBlocked.value = []
   }
 }
 
